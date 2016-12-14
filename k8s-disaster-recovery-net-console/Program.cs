@@ -1,5 +1,7 @@
 ﻿using System;
+using System.Threading;
 using k8s_disaster_recovery_net_console.API;
+using k8s_disaster_recovery_net_console.Model;
 
 namespace k8s_disaster_recovery_net_console
 {
@@ -7,6 +9,14 @@ namespace k8s_disaster_recovery_net_console
     {
         public static void Main(string[] args)
         {
+            Utils.InitializeSettings(args);
+
+            while (Utils.RunningMode == RunningMode.Node)
+            {
+                Console.WriteLine("Sleeping...");
+                Thread.Sleep(5000);
+            }
+
             try
             {
                 using (Microsoft.Owin.Hosting.WebApp.Start<OwinStartup>("http://*:9000/"))
