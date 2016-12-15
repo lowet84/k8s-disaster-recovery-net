@@ -14,18 +14,19 @@ namespace k8s_disaster_recovery_net_console.API
         {
             app.Run(context =>
             {
-                if (Utils.RunningMode == RunningMode.Master)
+                if (Utils.RunningMode == RunningMode.Master || Utils.RunningMode == RunningMode.Reserve)
                 {
-                    IController controller;
-                    if (context.Request.Path.Value.StartsWith("/nodes"))
+                    IController controller = null;
+                    if (Utils.RunningMode == RunningMode.Master
+                    && context.Request.Path.Value.StartsWith("/nodes"))
                     {
                         controller = new NodeController();
                     }
-                    else if (context.Request.Path.Value.StartsWith("/migration"))
+                    if (context.Request.Path.Value.StartsWith("/migration"))
                     {
                         controller = new MigrationController(context);
                     }
-                    else
+                    if (controller == null)
                     {
                         controller = new ErrorController("Nothing here :(");
                     }

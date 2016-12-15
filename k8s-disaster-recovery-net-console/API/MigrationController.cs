@@ -1,8 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Configuration;
 using System.Text;
 using System.Threading.Tasks;
+using k8s_disaster_recovery_net_console.Model;
 using Microsoft.Owin;
 
 namespace k8s_disaster_recovery_net_console.API
@@ -31,10 +33,21 @@ namespace k8s_disaster_recovery_net_console.API
                     CurrentReset = reset;
                     return reset;
                 }
-                else if (_context.Request.Path.Value.StartsWith($@"/migration/performreset/{CurrentReset?.Key}") && (DateTime.Now < CurrentReset?.Expire))
+                if (_context.Request.Path.Value.StartsWith($@"/migration/performreset/{CurrentReset?.Key}") && (DateTime.Now < CurrentReset?.Expire))
                 {
                     Utils.Reset();
+
+                    if (Utils.RunningMode == RunningMode.Reserve)
+                    {
+                        Utils.Promote();
+                    }
+
                     return "Resetting";
+
+                }
+                if (_context.Request.Path.Value.StartsWith("/migration/reset")) // TODO, remove
+                {
+                    Utils.Reset();
                 }
                 return Utils.Migrate;
             }
