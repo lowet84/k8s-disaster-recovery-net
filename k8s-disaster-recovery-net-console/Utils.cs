@@ -1,11 +1,8 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net;
-using System.Text;
-using System.Threading.Tasks;
 using k8s_disaster_recovery_net_console.Model;
 using ServiceStack.Text;
 
@@ -38,7 +35,7 @@ namespace k8s_disaster_recovery_net_console
                         RunningMode = RunningMode.Reserve,
                         HostUrl = args[1]
                     };
-                else if(args.Length == 1)
+                else if (args.Length == 1)
                 {
                     Settings = new Settings
                     {
@@ -66,6 +63,17 @@ namespace k8s_disaster_recovery_net_console
             Settings = settings;
         }
 
+        internal static void PerformMigration(string migrationKey)
+        {
+            Console.WriteLine("Migrating to new cluster");
+            Console.WriteLine(RunApp("kubeadm", "reset"));
+            Console.WriteLine(RunApp("systemctl", "start", "kubelet"));
+            Console.WriteLine(RunApp("kubeadm", "join", $"--token={migrationKey}"));
+            var settings = Settings;
+            settings.Migrate.MigrationKey = migrationKey;
+            Settings = settings;
+        }
+
         public static NodesModel.Nodes Nodes
         {
             get { return (NodesModel.Nodes)JsonSerializer.DeserializeFromString(File.ReadAllText(NodesPath), typeof(NodesModel.Nodes)); }
@@ -80,20 +88,28 @@ namespace k8s_disaster_recovery_net_console
             get { return (Settings)JsonSerializer.DeserializeFromString(File.ReadAllText(SettingsPath), typeof(Settings)); }
             set
             {
+                Console.WriteLine("Writing settings");
                 File.WriteAllText(SettingsPath, JsonSerializer.SerializeToString(value));
             }
         }
 
         public static void Reset()
         {
-            Console.WriteLine(RunApp("kubectl", "get", "nodes"));
+            var token = RandomString(6) + "." + RandomString(16);
+            Console.WriteLine(RunApp("kubeadm", "reset"));
+            Console.WriteLine(RunApp("systemctl", "start", "kubelet"));
+            Console.WriteLine(RunApp("kubeadm", "init", $"--token={token}", $"--api-external-dns-names={HostUrl}"));
+            Console.WriteLine(RunApp("kubectl", "apply", "-f", "/setup/weave.yml"));
+
+            var settings = Settings;
+            settings.Migrate.MigrationKey = token;
+            Settings = settings;
         }
 
         private static string RunApp(params string[] arguments)
         {
             if (Environment.OSVersion.Platform == PlatformID.Unix)
             {
-                Console.WriteLine("Resetting Kubernetes");
                 Console.WriteLine("Running: " + string.Join(" ", arguments));
                 var procStartInfo = new ProcessStartInfo("/bin/bash", "-c '" + string.Join(" ", arguments) + "'")
                 {
@@ -106,6 +122,7 @@ namespace k8s_disaster_recovery_net_console
                 proc.Start();
 
                 var result = proc.StandardOutput.ReadToEnd();
+                Console.WriteLine("Done");
                 return result;
             }
             else
@@ -120,7 +137,7 @@ namespace k8s_disaster_recovery_net_console
             try
             {
                 var wc = new WebClient();
-                var baseUri = new Uri("http://" + Utils.HostUrl);
+                var baseUri = new Uri("http://" + HostUrl);
                 var migrationUri = new Uri(baseUri, "migration");
                 var data = wc.DownloadString(migrationUri);
                 var ret = (MigrationModel)JsonSerializer.DeserializeFromString(data, typeof(MigrationModel));
@@ -133,6 +150,12 @@ namespace k8s_disaster_recovery_net_console
             }
         }
 
-
+        private static readonly Random Random = new Random();
+        public static string RandomString(int length)
+        {
+            const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyz";
+            return new string(Enumerable.Repeat(chars, length)
+              .Select(s => s[Random.Next(s.Length)]).ToArray());
+        }
     }
 }

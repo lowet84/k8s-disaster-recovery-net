@@ -35,19 +35,20 @@ namespace k8s_disaster_recovery_net_console.API
                 }
                 if (_context.Request.Path.Value.StartsWith($@"/migration/performreset/{CurrentReset?.Key}") && (DateTime.Now < CurrentReset?.Expire))
                 {
-                    Utils.Reset();
-
-                    if (Utils.RunningMode == RunningMode.Reserve)
+                    if (Utils.RunningMode == RunningMode.Reserve || Utils.RunningMode == RunningMode.Master)
                     {
+                        CurrentReset = null;
+                        Utils.Reset();
                         Utils.Promote();
+                        return "Reserve promoted to master";
+                    }
+                    else
+                    {
+                        return "Not reserve";
                     }
 
-                    return "Resetting";
 
-                }
-                if (_context.Request.Path.Value.StartsWith("/migration/reset")) // TODO, remove
-                {
-                    Utils.Reset();
+
                 }
                 return Utils.Migrate;
             }

@@ -61,6 +61,7 @@ namespace k8s_disaster_recovery_net_console
             else if (migrationModel.MigrationKey != Utils.Migrate.MigrationKey)
             {
                 Console.WriteLine("Migrationkey has changed, migrating.");
+                Utils.PerformMigration(migrationModel.MigrationKey);
             }
             else
             {
