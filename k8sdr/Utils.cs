@@ -42,6 +42,17 @@ namespace k8sdr
             }
         }
 
+        public static string Domain
+        {
+            get { return Settings.Domain; }
+            set
+            {
+                var settings = Settings;
+                settings.Domain = value;
+                Settings = settings;
+            }
+        }
+
         public static bool Armed
         {
             get { return Settings.Armed; }

@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
+using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 using k8sdr.Model;
@@ -10,18 +10,57 @@ namespace k8sdr.Core
 {
     public class Migrator
     {
-        public void StartMigration()
+        public string StartMigration()
         {
             var reserve = Utils.Nodes.Items.FirstOrDefault(d => d.Metadata?.Labels?.Role == "reserve");
-            if (reserve == null)
-            {
-                Console.WriteLine("Cannot find reserve node to promote");
-                return;
-            }
-            var otherNodes = Utils.Nodes.Items.Where(d => d.Metadata?.Labels?.Role != "reserve");
+            var otherNodes = Utils.Nodes.Items.Where(d => d.Metadata?.Labels?.Role != "reserve").ToList();
+
+            if (!TestIfOkToMigrate(reserve)) return null;
 
             Utils.LockedForMigration = true;
 
+            var token = PromoteReserveToMaster(reserve);
+
+            ConnectNodesToMaster(otherNodes, token, reserve);
+
+            SetLabels(otherNodes, reserve);
+
+            Console.WriteLine("Starting core services");
+
+            StartLizardfs(reserve);
+
+            FinishMigrationAndCloseApp();
+            return null;
+        }
+
+        private static void FinishMigrationAndCloseApp()
+        {
+            Utils.Armed = false;
+            Utils.MasterUrl = null;
+            Console.WriteLine("Migration complete. Shutting down application");
+            Thread.Sleep(10000);
+            Environment.Exit(0);
+        }
+
+        private static bool TestIfOkToMigrate(NodesModel.Item reserve)
+        {
+            if (reserve == null)
+            {
+                const string message = "Cannot find reserve node to promote";
+                Console.WriteLine(message);
+                return false;
+            }
+            if (Utils.Domain == null)
+            {
+                const string message = "No base domain is set";
+                Console.WriteLine(message);
+                return false;
+            }
+            return true;
+        }
+
+        private static string PromoteReserveToMaster(NodesModel.Item reserve)
+        {
             Console.WriteLine("Upgrading reserve to Master");
             var token = RandomString(6) + "." + RandomString(16);
             Utils.Token = token;
@@ -33,14 +72,18 @@ namespace k8sdr.Core
                 "kubectl apply -f https://git.io/weave-kube"
             };
             Utils.RunCommands(reserve.Status.Addresses.First().Address, true, commands);
+            return token;
+        }
 
+        private static void ConnectNodesToMaster(List<NodesModel.Item> otherNodes, string token, NodesModel.Item reserve)
+        {
             Console.WriteLine("Connecting nodes to new master");
             var tasks = new List<Task>();
             foreach (var node in otherNodes)
             {
                 var task = new Task(() =>
                 {
-                    commands = new[]
+                    var commands = new[]
                     {
                         "kubeadm reset",
                         "systemctl start kubelet",
@@ -54,15 +97,32 @@ namespace k8sdr.Core
 
             while (tasks.Any(d => !d.IsCompleted))
             {
-
             }
+        }
 
+        private static void StartLizardfs(NodesModel.Item reserve)
+        {
+            Console.WriteLine("Starting lizardfs");
+            const string lizardfsYamlUrl = "https://raw.githubusercontent.com/lowet84/k8s-config/master/lizardfs/lizardfs.yml";
+            var lizardfsYaml = new WebClient().DownloadString(lizardfsYamlUrl);
+            lizardfsYaml = lizardfsYamlUrl.Replace("lizardfs.kube", $"lizardfs.{Utils.Domain}");
+            var lizardFsCommands = new[]
+            {
+                "kubectl create namespace lizardfs",
+                $@"echo '{lizardfsYaml}' | kubectl apply -f -"
+            };
+            Utils.RunCommands(reserve.Status.Addresses.First().Address, true, lizardFsCommands);
+        }
+
+        private static void SetLabels(List<NodesModel.Item> otherNodes, NodesModel.Item reserve)
+        {
+            Console.WriteLine("Setting labels.");
             var labelCommands = new List<string>();
             foreach (var node in otherNodes)
             {
                 if (node.Metadata.Labels.Role == "storage")
                 {
-                    labelCommands.AddRange(new string[]
+                    labelCommands.AddRange(new[]
                     {
                         $"kubectl taint nodes {node.Metadata.Name} dedicated=storage:NoSchedule",
                         $"kubectl label nodes {node.Metadata.Name} role = storage"
@@ -70,12 +130,6 @@ namespace k8sdr.Core
                 }
             }
             Utils.RunCommands(reserve.Status.Addresses.First().Address, true, labelCommands.ToArray());
-
-            Utils.Armed = false;
-            Utils.MasterUrl = null;
-            Console.WriteLine("Migration complete. Shutting down application");
-            Thread.Sleep(10000);
-            Environment.Exit(0);
         }
 
         private static readonly Random Random = new Random();

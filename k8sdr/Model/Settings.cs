@@ -9,6 +9,7 @@ namespace k8sdr.Model
     public class Settings
     {
         public string PrivateKey { get; set; }
+        public string Domain { get; set; }
         public bool Armed { get; set; }
         public string HostUrl { get; set; }
         public NodesModel.Nodes Nodes { get; set; }

@@ -38,6 +38,12 @@ namespace k8sdr.Api
                     var key = new StreamReader(context.Request.Body).ReadToEnd();
                     Utils.PrivateKey = key;
                 }
+                else if (context.Request.Path.Value.StartsWith("/setdomain")
+                && context.Request.Method == "POST")
+                {
+                    var domain = new StreamReader(context.Request.Body).ReadToEnd();
+                    Utils.Domain = domain;
+                }
                 else if (context.Request.Path.Value.StartsWith("/setmaster")
                 && context.Request.Method == "POST")
                 {
