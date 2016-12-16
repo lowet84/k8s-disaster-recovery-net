@@ -72,6 +72,7 @@
   <ItemGroup>
     <Compile Include="Api\OwinStartup.cs" />
     <Compile Include="Core\CoreRunner.cs" />
+    <Compile Include="Core\Migrator.cs" />
     <Compile Include="Model\NodesModel.cs" />
     <Compile Include="Model\Settings.cs" />
     <Compile Include="Program.cs" />

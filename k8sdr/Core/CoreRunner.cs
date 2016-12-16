@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Configuration;
 using System.IO;
 using System.Linq;
 using System.Net.Configuration;
@@ -20,11 +21,30 @@ namespace k8sdr.Core
             {
                 try
                 {
-                    if (Utils.PrivateKey != null)
+                    if (Utils.LockedForMigration)
                     {
-                        var result = RunCommands(false, "kubectl get nodes -o json");
+                        while (true)
+                        {
+                            Thread.Sleep(10000);
+                        }
+                    }
+                    else if (Utils.PrivateKey != null)
+                    {
+                        var result = Utils.RunCommands(false, "kubectl get nodes -o json");
                         var nodes = JsonSerializer.DeserializeFromString<NodesModel.Nodes>(result[0]);
-                        Utils.Nodes = nodes;
+                        if (nodes.Items == null || nodes.Items.Count == 0)
+                        {
+                            Console.WriteLine("No nodes found");
+                        }
+                        else
+                        {
+                            Console.WriteLine("Saving node configutaion");
+                            Utils.Nodes = nodes;
+                        }
+                    }
+                    else
+                    {
+                        Console.WriteLine("No private key set.");
                     }
                 }
                 catch (Exception e)
@@ -34,33 +54,6 @@ namespace k8sdr.Core
                 Console.WriteLine("Sleeping...");
                 Thread.Sleep(30000);
             }
-        }
-
-        private string[] RunCommands(bool verbose, params string[] commands)
-        {
-            var ret = new string[commands.Length];
-            var sshClient = new SshClient(
-                            Utils.HostUrl,
-                            "root",
-                            new PrivateKeyFile(
-                                new MemoryStream(
-                                    Encoding.UTF8.GetBytes(
-                                        Utils.PrivateKey))));
-            Console.WriteLine($"Connecting to: {Utils.HostUrl}");
-            sshClient.Connect();
-            for (var index = 0; index < commands.Length; index++)
-            {
-                var command = commands[index];
-                Console.WriteLine($"Running command: {command}");
-                ret[index] = sshClient.RunCommand(command).Result;
-                if (verbose)
-                {
-                    Console.WriteLine(ret[index]);
-                }
-            }
-            Console.WriteLine("Finished");
-            sshClient.Disconnect();
-            return ret;
         }
     }
 }

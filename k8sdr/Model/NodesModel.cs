@@ -16,6 +16,7 @@ namespace k8sdr.Model
         public class Item
         {
             public Metadata Metadata { get; set; }
+            public Status Status { get; set; }
         }
 
         public class Metadata
@@ -27,6 +28,17 @@ namespace k8sdr.Model
         public class Labels
         {
             public string Role { get; set; }
+        }
+
+        public class Status
+        {
+            public List<AddressItem> Addresses { get; set; }
+        }
+
+        public class AddressItem
+        {
+            public string Type { get; set; }
+            public string Address { get; set; }
         }
     }
 }

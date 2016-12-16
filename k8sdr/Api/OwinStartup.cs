@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using k8sdr.Core;
 using Owin;
 using ServiceStack.Text;
 
@@ -14,7 +15,22 @@ namespace k8sdr.Api
             {
                 if (context.Request.Path.Value.StartsWith("/reset"))
                 {
-                    response = new { Text = "Hello world" };
+                    if (Utils.Armed)
+                    {
+                        Console.WriteLine("Starting migration");
+                        new Migrator().StartMigration();
+                    }
+                    else
+                    {
+                        Console.WriteLine("Reserve is not armed");
+                    }
+                }
+                else if (context.Request.Path.Value.StartsWith("/setarmed")
+                && context.Request.Method == "POST")
+                {
+                    bool armed;
+                    bool.TryParse(new StreamReader(context.Request.Body).ReadToEnd(),out armed);
+                    Utils.Armed = armed;
                 }
                 else if (context.Request.Path.Value.StartsWith("/setkey")
                 && context.Request.Method == "POST")
@@ -22,15 +38,16 @@ namespace k8sdr.Api
                     var key = new StreamReader(context.Request.Body).ReadToEnd();
                     Utils.PrivateKey = key;
                 }
-                else if (context.Request.Path.Value.StartsWith("/sethost")
+                else if (context.Request.Path.Value.StartsWith("/setmaster")
                 && context.Request.Method == "POST")
                 {
-                    var hostUrl = new StreamReader(context.Request.Body).ReadToEnd();
-                    Utils.HostUrl = hostUrl;
+                    var masterUrl = new StreamReader(context.Request.Body).ReadToEnd();
+                    Utils.MasterUrl = masterUrl;
                 }
 
                 var settings = Utils.Settings;
                 settings.PrivateKey = settings.PrivateKey == null ? "N/A" : "Hidden";
+                settings.Token = settings.Token == null ? "N/A" : "Hidden";
 
                 context.Response.ContentType = "application/json";
                 var responseValue = JsonSerializer.SerializeToString(response ?? settings);

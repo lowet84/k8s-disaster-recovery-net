@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using k8sdr.Model;
+using Renci.SshNet;
 using ServiceStack.Text;
 
 namespace k8sdr
@@ -12,6 +13,8 @@ namespace k8sdr
     public static class Utils
     {
         private const string SettingsPath = @"settings.json";
+
+        public static bool LockedForMigration { get; set; }
 
         public static Settings Settings
         {
@@ -39,13 +42,35 @@ namespace k8sdr
             }
         }
 
-        public static string HostUrl
+        public static bool Armed
+        {
+            get { return Settings.Armed; }
+            set
+            {
+                var settings = Settings;
+                settings.Armed = value;
+                Settings = settings;
+            }
+        }
+
+        public static string MasterUrl
         {
             get { return Settings.HostUrl; }
             set
             {
                 var settings = Settings;
                 settings.HostUrl = value;
+                Settings = settings;
+            }
+        }
+
+        public static string Token
+        {
+            get { return Settings.Token; }
+            set
+            {
+                var settings = Settings;
+                settings.Token = value;
                 Settings = settings;
             }
         }
@@ -59,6 +84,47 @@ namespace k8sdr
                 settings.Nodes = value;
                 Settings = settings;
             }
+        }
+
+        public static string[] RunCommands(string host, bool verbose, params string[] commands)
+        {
+            var ret = new string[commands.Length];
+
+            try
+            {
+                var sshClient = new SshClient(
+                    host,
+                    "root",
+                    new PrivateKeyFile(
+                        new MemoryStream(
+                            Encoding.UTF8.GetBytes(
+                                PrivateKey))));
+                Console.WriteLine($"Connecting to: {host}");
+                sshClient.Connect();
+                for (var index = 0; index < commands.Length; index++)
+                {
+                    var command = commands[index];
+                    Console.WriteLine($"Running command: {command}");
+                    ret[index] = sshClient.RunCommand(command).Result;
+                    if (verbose)
+                    {
+                        Console.WriteLine(ret[index]);
+                    }
+                }
+                Console.WriteLine("Finished");
+                sshClient.Disconnect();
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine($"Error: {e.Message}");
+            }
+            
+            return ret;
+        }
+
+        public static string[] RunCommands(bool verbose, params string[] commands)
+        {
+            return RunCommands(MasterUrl, verbose, commands);
         }
     }
 }
