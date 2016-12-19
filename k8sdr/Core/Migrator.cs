@@ -25,12 +25,33 @@ namespace k8sdr.Core
 
             SetLabels(otherNodes, reserve);
 
-            Console.WriteLine("Starting core services");
+            StartCoreServices(reserve);
 
             StartLizardfs(reserve);
 
             FinishMigrationAndCloseApp();
             return null;
+        }
+
+        private void StartCoreServices(NodesModel.Item reserve)
+        {
+            Console.WriteLine("Starting core services");
+
+            const string traefikYamlUrl = "https://raw.githubusercontent.com/lowet84/k8s-config/master/traefik-kube/traefik.yml";
+            var traefikYaml = new WebClient().DownloadString(traefikYamlUrl);
+            traefikYaml = traefikYaml.Replace("traefik.kube", $"traefik.{Utils.Domain}");
+
+            const string dashYamlUrl = "https://raw.githubusercontent.com/lowet84/k8s-config/master/dashboard/kubernetes-dashboard.yaml";
+            var dashYaml = new WebClient().DownloadString(dashYamlUrl);
+            dashYaml = dashYaml.Replace("dashboard.kube", $"dashboard.{Utils.Domain}");
+
+            var commands = new[]
+            {
+                $@"echo '{traefikYaml}' | kubectl apply -f -",
+                $@"echo '{dashYaml}' | kubectl apply -f -",
+                "docker run -d -it --restart always --name nginx-kube-proxy --net=host lowet84/nginx-kube-proxy"
+            };
+            Utils.RunCommands(reserve.Status.Addresses.First().Address, true, commands);
         }
 
         private static void FinishMigrationAndCloseApp()
@@ -105,11 +126,13 @@ namespace k8sdr.Core
             Console.WriteLine("Starting lizardfs");
             const string lizardfsYamlUrl = "https://raw.githubusercontent.com/lowet84/k8s-config/master/lizardfs/lizardfs.yml";
             var lizardfsYaml = new WebClient().DownloadString(lizardfsYamlUrl);
-            lizardfsYaml = lizardfsYamlUrl.Replace("lizardfs.kube", $"lizardfs.{Utils.Domain}");
+            lizardfsYaml = lizardfsYaml.Replace("lizardfs.kube", $"lizardfs.{Utils.Domain}");
+            var chunkYaml = new WebClient().DownloadString("https://raw.githubusercontent.com/lowet84/k8s-config/master/lizardfs/chunk.yml");
             var lizardFsCommands = new[]
             {
                 "kubectl create namespace lizardfs",
-                $@"echo '{lizardfsYaml}' | kubectl apply -f -"
+                $@"echo '{lizardfsYaml}' | kubectl apply -f -",
+                $@"echo '{chunkYaml}' | kubectl apply -f -"
             };
             Utils.RunCommands(reserve.Status.Addresses.First().Address, true, lizardFsCommands);
         }
@@ -125,7 +148,7 @@ namespace k8sdr.Core
                     labelCommands.AddRange(new[]
                     {
                         $"kubectl taint nodes {node.Metadata.Name} dedicated=storage:NoSchedule",
-                        $"kubectl label nodes {node.Metadata.Name} role = storage"
+                        $"kubectl label nodes {node.Metadata.Name} role=storage"
                     });
                 }
             }
