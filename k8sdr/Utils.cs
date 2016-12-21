@@ -1,9 +1,6 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 using k8sdr.Model;
 using Renci.SshNet;
 using ServiceStack.Text;
@@ -14,15 +11,16 @@ namespace k8sdr
     {
         private const string SettingsPath = @"settings.json";
 
-        public static bool LockedForMigration { get; set; }
-
         public static Settings Settings
         {
             get
             {
                 return File.Exists(SettingsPath)
                     ? (Settings) JsonSerializer.DeserializeFromString(File.ReadAllText(SettingsPath), typeof(Settings))
-                    : new Settings();
+                    : new Settings()
+                    {
+                        ResetState = ResetState.NotReady
+                    };
             }
             set
             {
@@ -97,6 +95,28 @@ namespace k8sdr
             }
         }
 
+        public static ResetState ResetState
+        {
+            get { return Settings.ResetState; }
+            set
+            {
+                var settings = Settings;
+                settings.ResetState = value;
+                Settings = settings;
+            }
+        }
+
+        public static string Message
+        {
+            get { return Settings.Message; }
+            set
+            {
+                var settings = Settings;
+                settings.Message = value;
+                Settings = settings;
+            }
+        }
+
         public static string[] RunCommands(string host, bool verbose, params string[] commands)
         {
             var ret = new string[commands.Length];
@@ -120,6 +140,7 @@ namespace k8sdr
                     if (verbose)
                     {
                         Console.WriteLine(ret[index]);
+                        Message = ret[index];
                     }
                 }
                 Console.WriteLine("Finished");

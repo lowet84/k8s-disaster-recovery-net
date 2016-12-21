@@ -21,12 +21,13 @@ namespace k8sdr.Core
             {
                 try
                 {
-                    if (Utils.LockedForMigration)
+                    if (Utils.Armed)
                     {
-                        while (true)
-                        {
-                            Thread.Sleep(10000);
-                        }
+                        Console.WriteLine("Migrator is armed, not running updater.");
+                    }
+                    else if((Utils.ResetState != ResetState.NotReady && Utils.ResetState != ResetState.ReadyToRestoreMaster))
+                    {
+                        Console.WriteLine("Migration is ongoing, not running updater.");
                     }
                     else if (Utils.PrivateKey != null)
                     {

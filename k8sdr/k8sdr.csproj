@@ -74,6 +74,8 @@
     <Compile Include="Core\CoreRunner.cs" />
     <Compile Include="Core\Migrator.cs" />
     <Compile Include="Model\NodesModel.cs" />
+    <Compile Include="Model\ResetModel.cs" />
+    <Compile Include="Model\ResetState.cs" />
     <Compile Include="Model\Settings.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

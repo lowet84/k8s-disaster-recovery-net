@@ -14,5 +14,7 @@ namespace k8sdr.Model
         public string HostUrl { get; set; }
         public NodesModel.Nodes Nodes { get; set; }
         public string Token { get; set; }
+        public ResetState ResetState { get; set; }
+        public string Message { get; set; }
     }
 }
