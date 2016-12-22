@@ -17,44 +17,54 @@ namespace k8sdr.Api
             app.Run(context =>
             {
                 object response = null;
-                if (context.Request.Path.Value.StartsWith("/reset")
-                && context.Request.Method == "GET")
-                {
-                    response = HandleGetReset(response);
-                }
-                else if (context.Request.Path.Value.StartsWith("/resetmaster")
+                if (context.Request.Path.Value.StartsWith("/api/resetmaster")
                 && context.Request.Method == "POST")
                 {
                     HandleRestoreMaster(context);
                 }
-                else if (context.Request.Path.Value.StartsWith("/restorenodes")
+                else if (context.Request.Path.Value.StartsWith("/api/restorenodes")
                 && context.Request.Method == "POST")
                 {
                     HandleConnectNodesToMaster(context);
                 }
-                else if (context.Request.Path.Value.StartsWith("/setlabels")
+                else if (context.Request.Path.Value.StartsWith("/api/setlabels")
                 && context.Request.Method == "POST")
                 {
                     HandleSetLabels(context);
                 }
-                else if (context.Request.Path.Value.StartsWith("/setarmed")
+                else if (context.Request.Path.Value.StartsWith("/api/startcoreservices")
+                && context.Request.Method == "POST")
+                {
+                    HandleStartCoreServices(context);
+                }
+                else if (context.Request.Path.Value.StartsWith("/api/startlizardfs")
+                && context.Request.Method == "POST")
+                {
+                    HandleStartLizardfs(context);
+                }
+                else if (context.Request.Path.Value.StartsWith("/api/startchunks")
+                && context.Request.Method == "POST")
+                {
+                    HandleStartChunks(context);
+                }
+                else if (context.Request.Path.Value.StartsWith("/api/setarmed")
                 && context.Request.Method == "POST")
                 {
                     HandleArmMigrator(context);
                 }
-                else if (context.Request.Path.Value.StartsWith("/setkey")
+                else if (context.Request.Path.Value.StartsWith("/api/setkey")
                 && context.Request.Method == "POST")
                 {
                     var key = new StreamReader(context.Request.Body).ReadToEnd();
                     Utils.PrivateKey = key;
                 }
-                else if (context.Request.Path.Value.StartsWith("/setdomain")
+                else if (context.Request.Path.Value.StartsWith("/api/setdomain")
                 && context.Request.Method == "POST")
                 {
                     var domain = new StreamReader(context.Request.Body).ReadToEnd();
                     Utils.Domain = domain;
                 }
-                else if (context.Request.Path.Value.StartsWith("/setmaster")
+                else if (context.Request.Path.Value.StartsWith("/api/setmaster")
                 && context.Request.Method == "POST")
                 {
                     var masterUrl = new StreamReader(context.Request.Body).ReadToEnd();
@@ -69,6 +79,51 @@ namespace k8sdr.Api
                 var responseValue = JsonSerializer.SerializeToString(response ?? settings);
                 return context.Response.WriteAsync(responseValue);
             });
+        }
+
+        private void HandleStartChunks(IOwinContext context)
+        {
+            if (Utils.ResetState == ResetState.ReadyToStartChunks)
+            {
+                var value = new StreamReader(context.Request.Body).ReadToEnd();
+                if (new[] { "master", "reserve" }.Contains(value))
+                {
+                    Utils.ResetState = ResetState.StartingChunks;
+                    var master = value == "master";
+                    Migrator.StartChunks(master);
+                    Utils.ResetState = ResetState.ReadyToSetupStorage;
+                }
+            }
+        }
+
+        private void HandleStartLizardfs(IOwinContext context)
+        {
+            if (Utils.ResetState == ResetState.ReadyToStartLizardfs)
+            {
+                var value = new StreamReader(context.Request.Body).ReadToEnd();
+                if (new[] { "master", "reserve" }.Contains(value))
+                {
+                    Utils.ResetState = ResetState.StartingLizardfs;
+                    var master = value == "master";
+                    Migrator.StartLizardfs(master);
+                    Utils.ResetState = ResetState.ReadyToStartChunks;
+                }
+            }
+        }
+
+        private void HandleStartCoreServices(IOwinContext context)
+        {
+            if (Utils.ResetState == ResetState.ReadyToStartCoreServices)
+            {
+                var value = new StreamReader(context.Request.Body).ReadToEnd();
+                if (new[] { "master", "reserve" }.Contains(value))
+                {
+                    Utils.ResetState = ResetState.StartingCoreServices;
+                    var master = value == "master";
+                    Migrator.StartCoreServices(master);
+                    Utils.ResetState = ResetState.ReadyToStartLizardfs;
+                }
+            }
         }
 
         private void HandleSetLabels(IOwinContext context)
@@ -122,29 +177,6 @@ namespace k8sdr.Api
                     Utils.ResetState = ResetState.ReadyToRestoreNodes;
                 }
             }
-        }
-
-        private static object HandleGetReset(object response)
-        {
-            var ret = new ResetModel();
-            ret.Message = Utils.Message;
-
-            if (Utils.ResetState == ResetState.Unarmed)
-            {
-                throw new NotImplementedException("Resetstate should never be set to unarmed in settings.");
-            }
-
-            ret.State = !Utils.Armed ? ResetState.Unarmed : Utils.ResetState;
-            if (ret.State == ResetState.NotReady)
-            {
-                var error = Migrator.MigrationError(false);
-                ret.State = error == null ? ResetState.ReadyToRestoreMaster : ResetState.NotReady;
-                ret.Error = error;
-                Utils.ResetState = ret.State;
-            }
-
-            response = ret;
-            return response;
         }
     }
 }

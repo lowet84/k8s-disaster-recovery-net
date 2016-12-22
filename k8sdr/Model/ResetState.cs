@@ -8,8 +8,6 @@ namespace k8sdr.Model
 {
     public enum ResetState
     {
-        Unarmed,
-        NotReady,
         ReadyToRestoreMaster,
         RestoringMaster,
         ReadyToRestoreNodes,
@@ -27,6 +25,7 @@ namespace k8sdr.Model
         ReadyToStartApps,
         StartingApps,
         Error,
-        Finished
+        Finished,
+        Unarmed
     }
 }

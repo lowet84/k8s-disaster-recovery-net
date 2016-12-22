@@ -10,33 +10,10 @@ namespace k8sdr.Core
 {
     public class Migrator
     {
-        //public string StartMigration()
-        //{
-        //    var reserve = Utils.Nodes.Items.FirstOrDefault(d => d.Metadata?.Labels?.Role == "reserve");
-        //    var otherNodes = Utils.Nodes.Items.Where(d => d.Metadata?.Labels?.Role != "reserve").ToList();
-
-        //    //if (!IsOkToMigrate()) return null;
-
-        //    Utils.LockedForMigration = true;
-
-        //    //var token = PromoteReserveToMaster(reserve);
-
-        //    ConnectNodesToMaster(otherNodes, token, reserve);
-
-        //    SetLabels(otherNodes, reserve);
-
-        //    StartCoreServices(reserve);
-
-        //    StartLizardfs(reserve);
-
-        //    FinishMigrationAndCloseApp();
-        //    return null;
-        //}
-
-        public static void SetUpMasterNode(bool resetmaster)
+        public static void SetUpMasterNode(bool master)
         {
-            Console.WriteLine(resetmaster ? "Resetting master" : "Upgrading reserve to Master");
-            var host = resetmaster ? Utils.MasterUrl : Utils.Nodes.Items.FirstOrDefault(d => d.Metadata?.Labels?.Role == "reserve").Status.Addresses.First().Address;
+            Console.WriteLine(master ? "Resetting master" : "Upgrading reserve to Master");
+            var host = master ? Utils.MasterUrl : Utils.Nodes.Items.FirstOrDefault(d => d.Metadata?.Labels?.Role == "reserve").Status.Addresses.First().Address;
             var token = RandomString(6) + "." + RandomString(16);
             Utils.Token = token;
             var commands = new[]
@@ -93,11 +70,16 @@ namespace k8sdr.Core
                 return;
             }
 
-            var otherNodes = Utils.Nodes.Items.Where(d => d.Metadata.Name != newMaster.Metadata.Name).ToList();
-
             var labelCommands = new List<string>();
-            foreach (var node in otherNodes)
+            foreach (var node in Utils.Nodes.Items)
             {
+                if (node.Metadata.Labels.Role == "master")
+                {
+                    labelCommands.AddRange(new[]
+                    {
+                        $"kubectl label nodes {node.Metadata.Name} role=master"
+                    });
+                }
                 if (node.Metadata.Labels.Role == "storage")
                 {
                     labelCommands.AddRange(new[]
@@ -118,9 +100,15 @@ namespace k8sdr.Core
             Utils.RunCommands(newMaster.Status.Addresses.First().Address, true, labelCommands.ToArray());
         }
 
-        private void StartCoreServices(NodesModel.Item reserve)
+        public static void StartCoreServices(bool master)
         {
             Console.WriteLine("Starting core services");
+
+            var newMaster = Utils.Nodes.Items.FirstOrDefault(d => d.Metadata.Labels.Role == (master ? "master" : "reserve"));
+            if (newMaster == null || string.IsNullOrEmpty(Utils.Domain))
+            {
+                return;
+            }
 
             const string traefikYamlUrl = "https://raw.githubusercontent.com/lowet84/k8s-config/master/traefik-kube/traefik.yml";
             var traefikYaml = new WebClient().DownloadString(traefikYamlUrl);
@@ -128,7 +116,7 @@ namespace k8sdr.Core
 
             const string dashYamlUrl = "https://raw.githubusercontent.com/lowet84/k8s-config/master/dashboard/kubernetes-dashboard.yaml";
             var dashYaml = new WebClient().DownloadString(dashYamlUrl);
-            dashYaml = dashYaml.Replace("dashboard.kube", $"dashboard.{Utils.Domain}");
+            dashYaml = dashYaml.Replace("kubernetes.kube", $"kubernetes.{Utils.Domain}");
 
             var commands = new[]
             {
@@ -136,7 +124,49 @@ namespace k8sdr.Core
                 $@"echo '{dashYaml}' | kubectl apply -f -",
                 "docker run -d -it --restart always --name nginx-kube-proxy --net=host lowet84/nginx-kube-proxy"
             };
-            Utils.RunCommands(reserve.Status.Addresses.First().Address, true, commands);
+            Utils.RunCommands(newMaster.Status.Addresses.First().Address, true, commands);
+        }
+
+        public static void StartLizardfs(bool master)
+        {
+            Console.WriteLine("Starting lizardfs");
+
+            var newMaster = Utils.Nodes.Items.FirstOrDefault(d => d.Metadata.Labels.Role == (master ? "master" : "reserve"));
+            if (newMaster == null || string.IsNullOrEmpty(Utils.Domain))
+            {
+                return;
+            }
+
+            const string lizardfsYamlUrl = "https://raw.githubusercontent.com/lowet84/k8s-config/master/lizardfs/lizardfs.yml";
+            var lizardfsYaml = new WebClient().DownloadString(lizardfsYamlUrl);
+            lizardfsYaml = lizardfsYaml.Replace("lizardfs.kube", $"lizardfs.{Utils.Domain}");
+            //var chunkYaml = new WebClient().DownloadString("https://raw.githubusercontent.com/lowet84/k8s-config/master/lizardfs/chunk.yml");
+            var lizardFsCommands = new[]
+            {
+                "kubectl create namespace lizardfs",
+                $@"echo '{lizardfsYaml}' | kubectl apply -f -",
+                //$@"echo '{chunkYaml}' | kubectl apply -f -"
+            };
+            Utils.RunCommands(newMaster.Status.Addresses.First().Address, true, lizardFsCommands);
+        }
+
+        public static void StartChunks(bool master)
+        {
+            Console.WriteLine("Starting lizardfs chunks");
+
+            var newMaster = Utils.Nodes.Items.FirstOrDefault(d => d.Metadata.Labels.Role == (master ? "master" : "reserve"));
+            if (newMaster == null || string.IsNullOrEmpty(Utils.Domain))
+            {
+                return;
+            }
+
+            var chunkYaml = new WebClient().DownloadString("https://raw.githubusercontent.com/lowet84/k8s-config/master/lizardfs/chunk.yml");
+            var lizardFsCommands = new[]
+            {
+                "kubectl create namespace lizardfs",
+                $@"echo '{chunkYaml}' | kubectl apply -f -"
+            };
+            Utils.RunCommands(newMaster.Status.Addresses.First().Address, true, lizardFsCommands);
         }
 
         private static void FinishMigrationAndCloseApp()
@@ -168,21 +198,7 @@ namespace k8sdr.Core
 
         
 
-        private static void StartLizardfs(NodesModel.Item reserve)
-        {
-            Console.WriteLine("Starting lizardfs");
-            const string lizardfsYamlUrl = "https://raw.githubusercontent.com/lowet84/k8s-config/master/lizardfs/lizardfs.yml";
-            var lizardfsYaml = new WebClient().DownloadString(lizardfsYamlUrl);
-            lizardfsYaml = lizardfsYaml.Replace("lizardfs.kube", $"lizardfs.{Utils.Domain}");
-            var chunkYaml = new WebClient().DownloadString("https://raw.githubusercontent.com/lowet84/k8s-config/master/lizardfs/chunk.yml");
-            var lizardFsCommands = new[]
-            {
-                "kubectl create namespace lizardfs",
-                $@"echo '{lizardfsYaml}' | kubectl apply -f -",
-                $@"echo '{chunkYaml}' | kubectl apply -f -"
-            };
-            Utils.RunCommands(reserve.Status.Addresses.First().Address, true, lizardFsCommands);
-        }
+        
 
         private static readonly Random Random = new Random();
         public static string RandomString(int length)

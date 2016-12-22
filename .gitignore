@@ -1,6 +1,0 @@
-﻿################################################################################
-# This .gitignore file was automatically created by Microsoft(R) Visual Studio.
-################################################################################
-
-/k8s-disaster-recovery-net-console/bin/Debug
-/k8s-disaster-recovery-net-console/obj/Debug

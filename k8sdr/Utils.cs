@@ -19,7 +19,7 @@ namespace k8sdr
                     ? (Settings) JsonSerializer.DeserializeFromString(File.ReadAllText(SettingsPath), typeof(Settings))
                     : new Settings()
                     {
-                        ResetState = ResetState.NotReady
+                        ResetState = ResetState.ReadyToRestoreMaster
                     };
             }
             set
@@ -95,11 +95,48 @@ namespace k8sdr
             }
         }
 
+        public static VolumesModel.Volumes Volumes
+        {
+            get { return Settings.Volumes; }
+            set
+            {
+                var settings = Settings;
+                settings.Volumes = value;
+                Settings = settings;
+            }
+        }
+
+        public static NamespacesModel.Namespaces Namespaces
+        {
+            get { return Settings.Namespaces; }
+            set
+            {
+                var settings = Settings;
+                settings.Namespaces = value;
+                Settings = settings;
+            }
+        }
+
+        public static VolumeClaimsModel.VolumeClaims VolumeClaims
+        {
+            get { return Settings.VolumeClaims; }
+            set
+            {
+                var settings = Settings;
+                settings.VolumeClaims = value;
+                Settings = settings;
+            }
+        }
+
         public static ResetState ResetState
         {
             get { return Settings.ResetState; }
             set
             {
+                if (value == ResetState.Unarmed)
+                {
+                    throw new NotImplementedException("This is not allowed!");
+                }
                 var settings = Settings;
                 settings.ResetState = value;
                 Settings = settings;
