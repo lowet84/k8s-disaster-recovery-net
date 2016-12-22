@@ -73,10 +73,13 @@
     <Compile Include="Api\OwinStartup.cs" />
     <Compile Include="Core\CoreRunner.cs" />
     <Compile Include="Core\Migrator.cs" />
+    <Compile Include="Model\DeployModel.cs" />
+    <Compile Include="Model\IngressModel.cs" />
     <Compile Include="Model\NamespacesModel.cs" />
     <Compile Include="Model\NodesModel.cs" />
     <Compile Include="Model\ResetModel.cs" />
     <Compile Include="Model\ResetState.cs" />
+    <Compile Include="Model\ServiceModel.cs" />
     <Compile Include="Model\Settings.cs" />
     <Compile Include="Model\VolumeClaimsModel.cs" />
     <Compile Include="Model\VolumesModel.cs" />
