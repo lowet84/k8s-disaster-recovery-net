@@ -128,6 +128,39 @@ namespace k8sdr
             }
         }
 
+        public static DeployModel.Deployments Deployments
+        {
+            get { return Settings.Deployments; }
+            set
+            {
+                var settings = Settings;
+                settings.Deployments = value;
+                Settings = settings;
+            }
+        }
+
+        public static ServiceModel.Services Services
+        {
+            get { return Settings.Services; }
+            set
+            {
+                var settings = Settings;
+                settings.Services = value;
+                Settings = settings;
+            }
+        }
+
+        public static IngressModel.Ingresses Ingresses
+        {
+            get { return Settings.Ingresses; }
+            set
+            {
+                var settings = Settings;
+                settings.Ingresses = value;
+                Settings = settings;
+            }
+        }
+
         public static ResetState ResetState
         {
             get { return Settings.ResetState; }

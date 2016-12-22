@@ -5,6 +5,7 @@ using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 using k8sdr.Model;
+using ServiceStack.Text;
 
 namespace k8sdr.Core
 {
@@ -166,6 +167,22 @@ namespace k8sdr.Core
                 "kubectl create namespace lizardfs",
                 $@"echo '{chunkYaml}' | kubectl apply -f -"
             };
+            Utils.RunCommands(newMaster.Status.Addresses.First().Address, true, lizardFsCommands);
+        }
+
+        public static void SetupNamespaces(bool master)
+        {
+            Console.WriteLine("Setting up namespaces");
+
+            var newMaster = Utils.Nodes.Items.FirstOrDefault(d => d.Metadata.Labels.Role == (master ? "master" : "reserve"));
+            if (newMaster == null || string.IsNullOrEmpty(Utils.Domain))
+            {
+                return;
+            }
+
+            var namespacesJson = Utils.Namespaces.items.Select(JsonSerializer.SerializeToString);
+            var lizardFsCommands = namespacesJson.Select(d=>
+                $@"echo '{d}' | kubectl apply -f -").ToArray();
             Utils.RunCommands(newMaster.Status.Addresses.First().Address, true, lizardFsCommands);
         }
 

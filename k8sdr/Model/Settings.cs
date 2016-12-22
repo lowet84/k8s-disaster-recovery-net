@@ -16,6 +16,9 @@ namespace k8sdr.Model
         public VolumesModel.Volumes Volumes { get; set; }
         public NamespacesModel.Namespaces Namespaces { get; set; }
         public VolumeClaimsModel.VolumeClaims VolumeClaims { get; set; }
+        public DeployModel.Deployments Deployments { get; set; }
+        public ServiceModel.Services Services { get; set; }
+        public IngressModel.Ingresses Ingresses { get; set; }
 
         public string Token { get; set; }
         public ResetState ResetState { get; set; }

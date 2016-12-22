@@ -47,6 +47,11 @@ namespace k8sdr.Api
                 {
                     HandleStartChunks(context);
                 }
+                else if (context.Request.Path.Value.StartsWith("/api/setupnamespaces")
+                && context.Request.Method == "POST")
+                {
+                    HandleSetupNamespaces(context);
+                }
                 else if (context.Request.Path.Value.StartsWith("/api/setarmed")
                 && context.Request.Method == "POST")
                 {
@@ -81,6 +86,21 @@ namespace k8sdr.Api
             });
         }
 
+        private void HandleSetupNamespaces(IOwinContext context)
+        {
+            if (Utils.ResetState == ResetState.ReadyToSetupNamespaces)
+            {
+                var value = new StreamReader(context.Request.Body).ReadToEnd();
+                if (new[] { "master", "reserve" }.Contains(value))
+                {
+                    Utils.ResetState = ResetState.SettingUpNamespaces;
+                    var master = value == "master";
+                    Migrator.SetupNamespaces(master);
+                    Utils.ResetState = ResetState.ReadyToSetupStorage;
+                }
+            }
+        }
+
         private void HandleStartChunks(IOwinContext context)
         {
             if (Utils.ResetState == ResetState.ReadyToStartChunks)
@@ -91,7 +111,7 @@ namespace k8sdr.Api
                     Utils.ResetState = ResetState.StartingChunks;
                     var master = value == "master";
                     Migrator.StartChunks(master);
-                    Utils.ResetState = ResetState.ReadyToSetupStorage;
+                    Utils.ResetState = ResetState.ReadyToSetupNamespaces;
                 }
             }
         }

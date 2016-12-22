@@ -135,7 +135,7 @@ namespace k8sdr.Model
             public Spec spec { get; set; }
         }
 
-        public class RootObject
+        public class Deployments
         {
             public string kind { get; set; }
             public string apiVersion { get; set; }

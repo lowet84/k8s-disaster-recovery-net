@@ -53,7 +53,7 @@ namespace k8sdr.Model
             public Status status { get; set; }
         }
 
-        public class RootObject
+        public class Services
         {
             public string kind { get; set; }
             public string apiVersion { get; set; }
