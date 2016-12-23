@@ -143,6 +143,7 @@ namespace k8sdr.Core
             var lizardFsCommands = new[]
             {
                 "kubectl create namespace lizardfs",
+                $@"echo '{lizardfsYaml}' | kubectl delete -f -",
                 $@"echo '{lizardfsYaml}' | kubectl apply -f -",
             };
             Utils.RunCommands(newMaster.Status.Addresses.First().Address, true, lizardFsCommands);
@@ -162,9 +163,30 @@ namespace k8sdr.Core
             var lizardFsCommands = new[]
             {
                 "kubectl create namespace lizardfs",
+                $@"echo '{chunkYaml}' | kubectl delete -f -",
                 $@"echo '{chunkYaml}' | kubectl apply -f -"
             };
             Utils.RunCommands(newMaster.Status.Addresses.First().Address, true, lizardFsCommands);
+        }
+
+        public static void RepairFiles(bool master)
+        {
+            Console.WriteLine("Repairing broken lizardfs chunks");
+
+            var nodes = Utils.Nodes.Items
+                .Where(d => string.IsNullOrEmpty(d.Metadata.Labels.Role))
+                .ToArray();
+            var anyNode = nodes[Random.Next(nodes.Length)];
+            if (anyNode == null || string.IsNullOrEmpty(Utils.Domain))
+            {
+                return;
+            }
+
+            var commands = new[]
+            {
+                "curl -s https://raw.githubusercontent.com/lowet84/k8s-config/master/lizardfs/repair.sh | bash"
+            };
+            Utils.RunCommands(anyNode.Status.Addresses.First().Address, true, commands);
         }
 
         public static void SetupNamespaces(bool master)

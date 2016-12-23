@@ -166,10 +166,6 @@ namespace k8sdr
             get { return Settings.ResetState; }
             set
             {
-                if (value == ResetState.Unarmed)
-                {
-                    throw new NotImplementedException("This is not allowed!");
-                }
                 var settings = Settings;
                 settings.ResetState = value;
                 Settings = settings;
