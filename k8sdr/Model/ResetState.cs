@@ -24,8 +24,6 @@ namespace k8sdr.Model
         SettingUpNamespaces,
         ReadyToSetupStorage,
         SettingUpStorage,
-        ReadyToSetupClaims,
-        SettingUpClaims,
         ReadyToStartApps,
         StartingApps,
         Error,

@@ -52,6 +52,16 @@ namespace k8sdr.Api
                 {
                     HandleSetupNamespaces(context);
                 }
+                else if (context.Request.Path.Value.StartsWith("/api/setupstorage")
+                && context.Request.Method == "POST")
+                {
+                    HandleSetupStorage(context);
+                }
+                else if (context.Request.Path.Value.StartsWith("/api/startapps")
+                && context.Request.Method == "POST")
+                {
+                    HandleStartApps(context);
+                }
                 else if (context.Request.Path.Value.StartsWith("/api/setarmed")
                 && context.Request.Method == "POST")
                 {
@@ -84,6 +94,36 @@ namespace k8sdr.Api
                 var responseValue = JsonSerializer.SerializeToString(response ?? settings);
                 return context.Response.WriteAsync(responseValue);
             });
+        }
+
+        private void HandleStartApps(IOwinContext context)
+        {
+            if (Utils.ResetState == ResetState.ReadyToStartApps)
+            {
+                var value = new StreamReader(context.Request.Body).ReadToEnd();
+                if (new[] { "master", "reserve" }.Contains(value))
+                {
+                    Utils.ResetState = ResetState.StartingApps;
+                    var master = value == "master";
+                    Migrator.StartApps(master);
+                    Utils.ResetState = ResetState.Finished;
+                }
+            }
+        }
+
+        private void HandleSetupStorage(IOwinContext context)
+        {
+            if (Utils.ResetState == ResetState.ReadyToSetupStorage)
+            {
+                var value = new StreamReader(context.Request.Body).ReadToEnd();
+                if (new[] { "master", "reserve" }.Contains(value))
+                {
+                    Utils.ResetState = ResetState.SettingUpStorage;
+                    var master = value == "master";
+                    Migrator.SetupStorage(master);
+                    Utils.ResetState = ResetState.ReadyToStartApps;
+                }
+            }
         }
 
         private void HandleSetupNamespaces(IOwinContext context)

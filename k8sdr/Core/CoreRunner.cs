@@ -40,7 +40,7 @@ namespace k8sdr.Core
                             "kubectl get --all-namespaces pvc -o json",
                             "kubectl get deploy --all-namespaces -o json",
                             "kubectl get svc --all-namespaces -o json",
-                            "kubectl get svc --all-namespaces -o json");
+                            "kubectl get ing --all-namespaces -o json");
 
                         var nodes = JsonSerializer.DeserializeFromString<NodesModel.Nodes>(result[0]);
                         var volumes = JsonSerializer.DeserializeFromString<VolumesModel.Volumes>(result[1]);
