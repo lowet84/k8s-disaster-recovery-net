@@ -18,7 +18,18 @@ namespace k8sdr.Api
             app.Run(context =>
             {
                 object response = null;
-                if (Utils.Armed)
+
+                if (context.Request.Path.Value.StartsWith("/api/setarmed")
+                       && context.Request.Method == "POST")
+                {
+                    HandleArmMigrator(context);
+                }
+                else if (context.Request.Path.Value.StartsWith("/api/forcereset")
+                       && context.Request.Method == "POST")
+                {
+                    HandleForceReset();
+                }
+                else if (Utils.Armed)
                 {
                     HandleArmed(context);
                 }
@@ -39,14 +50,16 @@ namespace k8sdr.Api
             });
         }
 
+        private void HandleForceReset()
+        {
+            Utils.ResetState = ResetState.ReadyToRestoreMaster;
+            Utils.Armed = false;
+        }
+
         private void HandleUnarmed(IOwinContext context)
         {
-            if (context.Request.Path.Value.StartsWith("/api/setarmed")
-                        && context.Request.Method == "POST")
-            {
-                HandleArmMigrator(context);
-            }
-            else if (context.Request.Path.Value.StartsWith("/api/setkey")
+
+            if (context.Request.Path.Value.StartsWith("/api/setkey")
             && context.Request.Method == "POST")
             {
                 var key = new StreamReader(context.Request.Body).ReadToEnd();

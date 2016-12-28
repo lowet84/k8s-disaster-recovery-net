@@ -240,8 +240,18 @@ namespace k8sdr.Core
             var services = Utils.Services.items
                 .Where(d => !restrictedNamespaces.Contains(d.metadata.@namespace)
                     && !(d.metadata.@namespace == "default" && d.metadata.name == "kubernetes")).Select(JsonSerializer.SerializeToString);
-            var ingresses = Utils.Ingresses.items
-                .Where(d => !restrictedNamespaces.Contains(d.metadata.@namespace)).Select(JsonSerializer.SerializeToString);
+            var ingressItems = Utils.Ingresses.items
+                .Where(d => !restrictedNamespaces.Contains(d.metadata.@namespace)).ToList();
+            foreach (var ingressItem in ingressItems)
+            {
+                var rule = ingressItem.spec.rules.FirstOrDefault();
+                if (rule != null)
+                {
+                    rule.host = ingressItem.metadata.name + "." + Utils.Domain;
+                }
+            }
+
+            var ingresses = ingressItems.Select(JsonSerializer.SerializeToString);
             var deployments = Utils.Deployments.items
                 .Where(d => !restrictedNamespaces.Contains(d.metadata.@namespace)).Select(JsonSerializer.SerializeToString);
 
